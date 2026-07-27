@@ -1,0 +1,30 @@
+# Core
+pandas==2.2.3
+numpy==1.26.4
+scikit-learn==1.5.2
+lightgbm==4.5.0
+imbalanced-learn==0.12.4
+
+# Explainability
+shap==0.46.0
+
+# API
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+
+# Persistence & IO
+joblib==1.4.2
+pyarrow==18.1.0
+
+# Visualization (notebooks / figures)
+matplotlib==3.9.3
+seaborn==0.13.2
+
+# Testing
+pytest==8.3.4
+httpx==0.28.1
+
+# Notebook execution (optional)
+ipykernel==7.3.0
+nbconvert==7.17.1

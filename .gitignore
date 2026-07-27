@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+venv/
+.venv/
+
+# Data (regenerate via src/preprocessing.py)
+data/raw/
+data/processed/
+
+# Model artifacts (regenerate via src/train.py); keep the sample threshold
+models/*.pkl
+
+# Notebooks
+.ipynb_checkpoints/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

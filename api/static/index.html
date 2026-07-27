@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fraud Claim Scorer</title>
+<style>
+  :root {
+    --navy: #0F3040; --red: #D62828; --orange: #F77F00; --gold: #FCBF49;
+    --bg: #F0F4F8; --card: #FFFFFF; --border: #DDE6ED; --muted: #53606E;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+         color: var(--navy); min-height: 100vh; }
+  header { background: var(--navy); color: #fff; padding: 18px 28px; }
+  header h1 { font-size: 20px; font-weight: 600; }
+  header p { color: var(--gold); font-size: 13px; margin-top: 2px; }
+  .wrap { display: grid; grid-template-columns: minmax(340px, 460px) 1fr;
+          gap: 20px; padding: 20px 28px; max-width: 1280px; margin: 0 auto; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--border);
+          border-radius: 10px; padding: 18px; }
+  .card h2 { font-size: 14px; color: var(--muted); text-transform: uppercase;
+             letter-spacing: .05em; margin-bottom: 12px; }
+  fieldset { border: none; margin-bottom: 10px; }
+  legend { font-size: 12px; font-weight: 600; color: var(--muted);
+           padding: 8px 0 4px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  select, input { width: 100%; padding: 6px 8px; font-size: 12px;
+                  border: 1px solid var(--border); border-radius: 6px;
+                  background: #fff; color: var(--navy); }
+  .btn-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  button { padding: 10px 16px; font-size: 13px; font-weight: 600; border: none;
+           border-radius: 8px; cursor: pointer; }
+  .primary { background: var(--red); color: #fff; flex: 1; }
+  .primary:hover { background: #b71f1f; }
+  .ghost { background: #fff; color: var(--navy); border: 1px solid var(--border); }
+  .ghost:hover { background: var(--bg); }
+
+  #result { display: none; }
+  .verdict { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .badge { padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 13px; }
+  .badge.flagged { background: #FBE3E3; color: var(--red); }
+  .badge.clear { background: #E3F2EA; color: #1E7A55; }
+  .prob { font-size: 34px; font-weight: 700; }
+  .meter { height: 12px; background: var(--border); border-radius: 999px;
+           overflow: hidden; margin: 6px 0 4px; }
+  .meter > div { height: 100%; background: linear-gradient(90deg, var(--gold), var(--orange), var(--red));
+                 width: 0; transition: width .5s ease; }
+  .threshold-note { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+  .reasons li { background: var(--bg); border-left: 3px solid var(--orange);
+                padding: 8px 10px; margin: 6px 0; font-size: 13px;
+                border-radius: 0 6px 6px 0; list-style: none; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+  td.prob-cell { font-weight: 700; color: var(--red); }
+  .error { background: #FBE3E3; color: var(--red); padding: 10px 12px;
+           border-radius: 8px; font-size: 13px; display: none; margin-top: 10px; }
+  .spinner { display: none; font-size: 13px; color: var(--muted); margin-top: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🚨 Fraud Claim Scorer</h1>
+  <p>Human-review triage — every flag explained. Backend: FastAPI + LightGBM + SHAP.</p>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <h2>Claim details</h2>
+    <form id="claim-form">
+      <fieldset>
+        <legend>Incident</legend>
+        <div class="grid">
+          <div><label>Accident month</label><select name="Month"><option>Jan</option><option>Feb</option><option selected>Mar</option><option>Apr</option><option>May</option><option>Jun</option><option>Jul</option><option>Aug</option><option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option></select></div>
+          <div><label>Week of month</label><select name="WeekOfMonth"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select></div>
+          <div><label>Day of week</label><select name="DayOfWeek"><option>Monday</option><option selected>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></div>
+          <div><label>Accident area</label><select name="AccidentArea"><option selected>Urban</option><option>Rural</option></select></div>
+          <div><label>Fault</label><select name="Fault"><option>Policy Holder</option><option selected>Third Party</option></select></div>
+          <div><label>Police report filed</label><select name="PoliceReportFiled"><option selected>Yes</option><option>No</option></select></div>
+          <div><label>Witness present</label><select name="WitnessPresent"><option selected>Yes</option><option>No</option></select></div>
+          <div><label>Days policy → accident</label><select name="Days_Policy_Accident"><option>none</option><option>1 to 7</option><option>8 to 15</option><option>15 to 30</option><option selected>more than 30</option></select></div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Claim filing</legend>
+        <div class="grid">
+          <div><label>Month claimed</label><select name="MonthClaimed"><option>Jan</option><option>Feb</option><option selected>Mar</option><option>Apr</option><option>May</option><option>Jun</option><option>Jul</option><option>Aug</option><option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option></select></div>
+          <div><label>Week of month claimed</label><select name="WeekOfMonthClaimed"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select></div>
+          <div><label>Day claimed</label><select name="DayOfWeekClaimed"><option>Monday</option><option>Tuesday</option><option selected>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></div>
+          <div><label>Days policy → claim</label><select name="Days_Policy_Claim"><option>none</option><option>8 to 15</option><option>15 to 30</option><option selected>more than 30</option></select></div>
+          <div><label>Supplements</label><select name="NumberOfSuppliments"><option selected>none</option><option>1 to 2</option><option>3 to 5</option><option>more than 5</option></select></div>
+          <div><label>Address change before claim</label><select name="AddressChange_Claim"><option selected>no change</option><option>under 6 months</option><option>1 year</option><option>2 to 3 years</option><option>4 to 8 years</option></select></div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Vehicle</legend>
+        <div class="grid">
+          <!-- Option labels are display-friendly; value= carries the EXACT
+               dataset spelling the model was trained on (incl. its typos) -->
+          <div><label>Make</label><select name="Make"><option value="Honda">Honda</option><option value="Toyota" selected>Toyota</option><option value="Ford">Ford</option><option value="Mazda">Mazda</option><option value="Chevrolet">Chevrolet</option><option value="Pontiac">Pontiac</option><option value="Accura">Acura</option><option value="Dodge">Dodge</option><option value="Mercury">Mercury</option><option value="Jaguar">Jaguar</option><option value="Nisson">Nissan</option><option value="VW">VW</option><option value="Saab">Saab</option><option value="Saturn">Saturn</option><option value="Porche">Porsche</option><option value="BMW">BMW</option><option value="Mecedes">Mercedes</option><option value="Ferrari">Ferrari</option><option value="Lexus">Lexus</option></select></div>
+          <div><label>Category</label><select name="VehicleCategory"><option selected>Sedan</option><option>Sport</option><option>Utility</option></select></div>
+          <div><label>Price band</label><select name="VehiclePrice"><option>less than 20000</option><option selected>20000 to 29000</option><option>30000 to 39000</option><option>40000 to 59000</option><option>60000 to 69000</option><option>more than 69000</option></select></div>
+          <div><label>Vehicle age</label><select name="AgeOfVehicle"><option>new</option><option>2 years</option><option>3 years</option><option>4 years</option><option selected>5 years</option><option>6 years</option><option>7 years</option><option>more than 7</option></select></div>
+          <div><label>Number of cars</label><select name="NumberOfCars"><option>1 vehicle</option><option selected>2 vehicles</option><option>3 to 4</option><option>5 to 8</option><option>more than 8</option></select></div>
+          <div><label>Model year</label><input name="Year" type="number" value="1995" min="1990" max="2030"></div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Policy holder &amp; policy</legend>
+        <div class="grid">
+          <div><label>Sex</label><select name="Sex"><option>Male</option><option selected>Female</option></select></div>
+          <div><label>Marital status</label><select name="MaritalStatus"><option>Single</option><option selected>Married</option><option>Widow</option><option>Divorced</option></select></div>
+          <div><label>Age</label><input name="Age" type="number" value="34" min="16" max="100"></div>
+          <!-- Derived fields: shown for transparency, not editable. The API
+               recomputes both server-side, so contradictory inputs (e.g. Age
+               22 with bracket "over 65") are impossible by construction. -->
+          <div><label>Age bracket (derived from age)</label>
+               <input type="text" id="derived-bracket" value="41 to 50" readonly
+                      style="background:#EEF3F7;color:#53606E" tabindex="-1"></div>
+          <div><label>Policy type (derived from category + base policy)</label>
+               <input type="text" id="derived-policytype" value="Sedan - Liability" readonly
+                      style="background:#EEF3F7;color:#53606E" tabindex="-1"></div>
+          <div><label>Base policy</label><select name="BasePolicy"><option selected>Liability</option><option>Collision</option><option>All Perils</option></select></div>
+          <div><label>Deductible</label><select name="Deductible"><option>300</option><option selected>400</option><option>500</option><option>700</option></select></div>
+          <div><label>Driver rating</label><select name="DriverRating"><option selected>1</option><option>2</option><option>3</option><option>4</option></select></div>
+          <div><label>Past claims</label><select name="PastNumberOfClaims"><option selected>none</option><option>1</option><option>2 to 4</option><option>more than 4</option></select></div>
+          <div><label>Agent type</label><select name="AgentType"><option selected>External</option><option>Internal</option></select></div>
+          <div><label>Rep number</label><input name="RepNumber" type="number" value="7" min="1" max="16"></div>
+        </div>
+      </fieldset>
+      <div class="btn-row">
+        <button type="submit" class="primary">Score claim</button>
+        <button type="button" class="ghost" id="load-suspicious">Suspicious example</button>
+        <button type="button" class="ghost" id="load-clean">Clean example</button>
+      </div>
+      <div class="spinner" id="spinner">Scoring…</div>
+      <div class="error" id="error"></div>
+    </form>
+  </div>
+
+  <div>
+    <div class="card" id="result">
+      <h2>Verdict</h2>
+      <div class="verdict">
+        <span class="prob" id="prob-value">–</span>
+        <span class="badge" id="badge">–</span>
+      </div>
+      <div class="meter"><div id="meter-fill"></div></div>
+      <div class="threshold-note" id="threshold-note"></div>
+      <h2>Why (top SHAP drivers)</h2>
+      <ul class="reasons" id="reasons"></ul>
+    </div>
+
+    <div class="card" style="margin-top: 20px;">
+      <h2>Review queue — recent flagged claims</h2>
+      <table>
+        <thead><tr><th>Received</th><th>P(fraud)</th><th>Top reasons</th></tr></thead>
+        <tbody id="queue-body"><tr><td colspan="3" style="color:var(--muted)">No flagged claims yet.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const WEEKS = ["1","2","3","4","5"];
+const INT_FIELDS = new Set(["WeekOfMonth","WeekOfMonthClaimed","Age","RepNumber",
+                            "Deductible","DriverRating","Year"]);
+
+// Dropdown options are baked into the HTML (no JS population needed).
+
+const PRESETS = {
+  suspicious: {Month:"Nov",WeekOfMonth:"4",DayOfWeek:"Sunday",Make:"Honda",
+    AccidentArea:"Rural",DayOfWeekClaimed:"Monday",MonthClaimed:"Dec",
+    WeekOfMonthClaimed:"1",Sex:"Male",MaritalStatus:"Single",Age:"21",
+    Fault:"Policy Holder",VehicleCategory:"Sport",
+    VehiclePrice:"more than 69000",RepNumber:"3",Deductible:"300",DriverRating:"4",
+    Days_Policy_Accident:"1 to 7",Days_Policy_Claim:"8 to 15",
+    PastNumberOfClaims:"more than 4",AgeOfVehicle:"new",
+    PoliceReportFiled:"No",WitnessPresent:"No",AgentType:"Internal",
+    NumberOfSuppliments:"more than 5",AddressChange_Claim:"under 6 months",
+    NumberOfCars:"1 vehicle",Year:"1996",BasePolicy:"All Perils"},
+  clean: {Month:"Mar",WeekOfMonth:"2",DayOfWeek:"Tuesday",Make:"Toyota",
+    AccidentArea:"Urban",DayOfWeekClaimed:"Wednesday",MonthClaimed:"Mar",
+    WeekOfMonthClaimed:"2",Sex:"Female",MaritalStatus:"Married",Age:"45",
+    Fault:"Third Party",VehicleCategory:"Sedan",
+    VehiclePrice:"20000 to 29000",RepNumber:"7",Deductible:"400",DriverRating:"1",
+    Days_Policy_Accident:"more than 30",Days_Policy_Claim:"more than 30",
+    PastNumberOfClaims:"none",AgeOfVehicle:"5 years",
+    PoliceReportFiled:"Yes",WitnessPresent:"Yes",AgentType:"External",
+    NumberOfSuppliments:"none",AddressChange_Claim:"no change",
+    NumberOfCars:"2 vehicles",Year:"1995",BasePolicy:"Liability"},
+};
+
+// Derived fields — mirror the server-side rules exactly (schemas.py):
+// AgeOfPolicyHolder = binning of Age; PolicyType = Category + " - " + BasePolicy.
+// The API recomputes both anyway; the UI just shows the analyst what will be used.
+const AGE_BRACKETS = [[17, "16 to 17"], [20, "18 to 20"], [25, "21 to 25"],
+                      [30, "26 to 30"], [35, "31 to 35"], [40, "36 to 40"],
+                      [50, "41 to 50"], [65, "51 to 65"]];
+function bracketFor(age) {
+  for (const [upper, b] of AGE_BRACKETS) if (age <= upper) return b;
+  return "over 65";
+}
+function syncDerived() {
+  const age = parseInt(document.querySelector('[name="Age"]').value, 10);
+  document.getElementById("derived-bracket").value = isNaN(age) ? "—" : bracketFor(age);
+  const vc = document.querySelector('[name="VehicleCategory"]').value;
+  const bp = document.querySelector('[name="BasePolicy"]').value;
+  document.getElementById("derived-policytype").value = `${vc} - ${bp}`;
+}
+document.querySelector('[name="Age"]').addEventListener("input", syncDerived);
+document.querySelector('[name="VehicleCategory"]').addEventListener("change", syncDerived);
+document.querySelector('[name="BasePolicy"]').addEventListener("change", syncDerived);
+
+function applyPreset(p) {
+  for (const [k, v] of Object.entries(p)) {
+    const el = document.querySelector(`[name="${k}"]`);
+    if (el) el.value = v;
+  }
+  syncDerived();
+}
+document.getElementById("load-suspicious").onclick = () => applyPreset(PRESETS.suspicious);
+document.getElementById("load-clean").onclick = () => applyPreset(PRESETS.clean);
+applyPreset(PRESETS.clean);
+
+async function refreshQueue() {
+  try {
+    const items = await (await fetch("/queue")).json();
+    const body = document.getElementById("queue-body");
+    if (!items.length) return;
+    body.innerHTML = items.map(i => `<tr>
+      <td>${i.received_at.slice(11, 19)} UTC</td>
+      <td class="prob-cell">${(i.fraud_probability * 100).toFixed(1)}%</td>
+      <td>${i.top_reasons.join(" · ")}</td></tr>`).join("");
+  } catch (e) { /* queue is cosmetic — ignore */ }
+}
+
+document.getElementById("claim-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const errBox = document.getElementById("error");
+  errBox.style.display = "none";
+  document.getElementById("spinner").style.display = "block";
+
+  const payload = {};
+  for (const el of ev.target.elements) {
+    if (!el.name) continue;
+    payload[el.name] = INT_FIELDS.has(el.name) ? parseInt(el.value, 10) : el.value;
+  }
+  try {
+    const res = await fetch("/predict", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`API ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const d = await res.json();
+
+    document.getElementById("result").style.display = "block";
+    document.getElementById("prob-value").textContent = (d.fraud_probability * 100).toFixed(1) + "%";
+    const badge = document.getElementById("badge");
+    badge.textContent = d.flagged ? "FLAGGED FOR REVIEW" : "NOT FLAGGED";
+    badge.className = "badge " + (d.flagged ? "flagged" : "clear");
+    document.getElementById("meter-fill").style.width = Math.max(2, d.fraud_probability * 100) + "%";
+    document.getElementById("threshold-note").textContent =
+      `Operating threshold ${(d.threshold * 100).toFixed(1)}% — tuned for recall: ` +
+      `missing fraud costs the payout, a false alarm costs a review.`;
+    document.getElementById("reasons").innerHTML =
+      d.top_reasons.length
+        ? d.top_reasons.map(r => `<li>${r}</li>`).join("")
+        : "<li>No strong risk-increasing drivers.</li>";
+    refreshQueue();
+  } catch (e) {
+    errBox.textContent = e.message;
+    errBox.style.display = "block";
+  } finally {
+    document.getElementById("spinner").style.display = "none";
+  }
+});
+
+refreshQueue();
+</script>
+</body>
+</html>
