@@ -134,3 +134,38 @@ api/         FastAPI app + Pydantic schemas + cached model loader
 models/      trained pipelines + operating threshold
 tests/       response shape, validation, risk-ordering sanity checks
 ```
+
+---
+
+## 🚢 Deployment
+
+[![CI](https://github.com/Yahya-osama-mohmamed/insurance-fraud-detection/actions/workflows/ci.yml/badge.svg)](https://github.com/Yahya-osama-mohmamed/insurance-fraud-detection/actions/workflows/ci.yml)
+[![Publish container](https://github.com/Yahya-osama-mohmamed/insurance-fraud-detection/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Yahya-osama-mohmamed/insurance-fraud-detection/actions/workflows/docker-publish.yml)
+
+The published image is self-contained — model included — so this is all it takes:
+
+```bash
+docker run -p 8000:8000 ghcr.io/yahya-osama-mohmamed/insurance-fraud-api:latest
+curl http://localhost:8000/health
+```
+
+Images are tagged `latest`, `sha-<commit>` and semver on a release tag.
+
+**What has to pass before an image is published**
+
+| Stage | What it checks |
+|---|---|
+| Lint | `ruff` across the package |
+| Tests | `pytest` with coverage, against the released model artifact |
+| Dependency audit | `pip-audit` (advisory) |
+| **Model quality gate** | **recall ≥ 0.85** (the metric the design premise rests on), PR-AUC ≥ 0.24, ROC-AUC ≥ 0.82 |
+| **Container smoke test** | The image is started and the real endpoints are called; the response is asserted, not just the status code |
+| Image scan | Trivy, HIGH/CRITICAL (advisory) |
+
+The quality gate is the part worth pointing at: a retrain that quietly degrades
+still runs, still passes the tests, and would still build — the gate is what
+stops it reaching an image.
+
+**Model artifacts** live in the [`models-v1` release](https://github.com/Yahya-osama-mohmamed/insurance-fraud-detection/releases/tag/models-v1),
+not in git. CI fetches them before the tests and before the image build, so the
+binaries stay versioned and immutable without bloating the repository history.
