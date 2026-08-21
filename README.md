@@ -114,6 +114,17 @@ curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -
 
 ## How to run
 
+**Just run it** — the published image carries the model, so nothing needs
+training first:
+
+```bash
+docker run -p 8000:8000 ghcr.io/yahya-osama-mohmamed/insurance-fraud-api:latest
+```
+
+Then open http://localhost:8000/ui/ for the analyst interface.
+
+**From source:**
+
 ```bash
 # Full pipeline (data -> models -> metrics -> SHAP)
 python -m src.preprocessing && python -m src.train && python -m src.evaluate && python -m src.explain
@@ -121,8 +132,8 @@ python -m src.preprocessing && python -m src.train && python -m src.evaluate && 
 # Tests
 pytest tests/ -q
 
-# Docker
-docker build -t fraud-api . && docker run -p 8000:8000 fraud-api
+# Check the model still clears its floor, the way CI does
+python scripts/check_model_quality.py
 ```
 
 ## Repo tour
@@ -130,10 +141,20 @@ docker build -t fraud-api . && docker run -p 8000:8000 fraud-api
 ```
 notebooks/   01_eda, 02_feature_engineering, 03_modeling (executed, with figures)
 src/         preprocessing -> features -> train -> evaluate -> explain
-api/         FastAPI app + Pydantic schemas + cached model loader
-models/      trained pipelines + operating threshold
+api/         FastAPI app + Pydantic schemas + cached model loader + static analyst UI
+models/      threshold.json is tracked; the model binary comes from the release
 tests/       response shape, validation, risk-ordering sanity checks
+scripts/     check_model_quality.py - the recall floor CI enforces
+deploy/      Hugging Face Space definition (see deploy/huggingface/SETUP.md)
+.github/     CI, container publish, smoke payload, Dependabot
 ```
+
+### Live demo
+
+`deploy/huggingface/` defines a Hugging Face Space that runs the **published
+image** rather than rebuilding from source — so the demo and the artifact that
+passed the smoke test are the same bytes. `deploy/huggingface/SETUP.md` has the
+two-minute setup.
 
 ---
 
