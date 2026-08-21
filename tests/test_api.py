@@ -1,10 +1,8 @@
 """API tests: response shape + sanity of the risk ordering."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
-from api.schemas import ClaimInput
 
 client = TestClient(app)
 

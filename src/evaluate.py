@@ -15,21 +15,27 @@ predictions* — the test set plays no part in choosing the threshold.
 """
 
 import json
-from pathlib import Path
 
 import joblib
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.metrics import (
-    average_precision_score, confusion_matrix, f1_score, fbeta_score,
-    precision_recall_curve, precision_score, recall_score, roc_auc_score,
+    average_precision_score,
+    confusion_matrix,
+    f1_score,
+    fbeta_score,
+    precision_recall_curve,
+    precision_score,
+    recall_score,
+    roc_auc_score,
 )
 from sklearn.model_selection import cross_val_predict
 
-from src.preprocessing import PROCESSED_DIR, PROJECT_ROOT, TARGET, RANDOM_STATE
+from src.preprocessing import PROCESSED_DIR, PROJECT_ROOT, TARGET
 from src.train import CV, MODELS_DIR, REPORTS_DIR
 
 FIGURES_DIR = PROJECT_ROOT / "notebooks" / "figures"
@@ -110,7 +116,8 @@ def main() -> None:
     ax.plot(recall, precision, color="#B85C38", lw=2)
     ax.axhline(y_test.mean(), color="grey", ls="--",
                label=f"Prevalence ({y_test.mean():.1%})")
-    ax.set_xlabel("Recall"); ax.set_ylabel("Precision")
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
     ax.set_title(f"Precision-Recall curve — PR-AUC {average_precision_score(y_test, probs):.3f}")
     ax.legend()
     fig.tight_layout()

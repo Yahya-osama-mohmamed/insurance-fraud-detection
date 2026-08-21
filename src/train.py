@@ -14,10 +14,8 @@ saved to models/fraud_model.pkl.
 """
 
 import json
-from pathlib import Path
 
 import joblib
-import numpy as np
 import pandas as pd
 from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as ImbPipeline
@@ -29,8 +27,8 @@ from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold, cross_v
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from src.features import FraudFeatureEngineer, NUMERIC_OUTPUT, OHE_COLUMNS
-from src.preprocessing import PROCESSED_DIR, PROJECT_ROOT, TARGET, RANDOM_STATE
+from src.features import NUMERIC_OUTPUT, OHE_COLUMNS, FraudFeatureEngineer
+from src.preprocessing import PROCESSED_DIR, PROJECT_ROOT, RANDOM_STATE, TARGET
 
 MODELS_DIR = PROJECT_ROOT / "models"
 REPORTS_DIR = PROJECT_ROOT / "reports"

@@ -63,7 +63,7 @@ def predict(claim: ClaimInput):
 
     if flagged:
         REVIEW_QUEUE.appendleft(QueueItem(
-            received_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            received_at=datetime.datetime.now(datetime.UTC).isoformat(),
             fraud_probability=round(prob, 4),
             top_reasons=reasons,
         ))

@@ -1,0 +1,23 @@
+# Runtime dependencies for the API image only.
+#
+# requirements.txt is the development set - it also carries jupyter, mlflow,
+# streamlit and the plotting stack, none of which the served API imports.
+# Installing that into the image would triple its size for no benefit.
+# The CI smoke test starts a container built from this file and calls the
+# real endpoints, so a missing dependency fails the build rather than
+# reaching a user.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+joblib==1.4.2
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+# The served pipeline is an imblearn Pipeline wrapping LightGBM: both must be
+# importable to unpickle it.
+lightgbm==4.5.0
+imbalanced-learn==0.12.4
+# Every response carries SHAP-derived reasons, so this is a runtime dependency
+# rather than an analysis one.
+shap==0.46.0
+matplotlib==3.9.3

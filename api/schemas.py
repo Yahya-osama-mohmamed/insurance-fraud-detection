@@ -1,7 +1,8 @@
 """Pydantic request/response models for the fraud-scoring API."""
 
-from typing import List, Literal, Optional
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 YesNo = Literal["Yes", "No"]
 
@@ -32,10 +33,10 @@ class ClaimInput(BaseModel):
     WeekOfMonthClaimed: int = Field(..., ge=1, le=5)
     Sex: Literal["Male", "Female"]
     MaritalStatus: Literal["Single", "Married", "Widow", "Divorced"]
-    Age: Optional[int] = Field(None, ge=16, le=100,
+    Age: int | None = Field(None, ge=16, le=100,
                                description="Policy holder age; omit if unknown")
     Fault: Literal["Policy Holder", "Third Party"]
-    PolicyType: Optional[str] = Field(
+    PolicyType: str | None = Field(
         None, description="DERIVED server-side as '<VehicleCategory> - <BasePolicy>'; "
                           "any client-sent value is overwritten to prevent "
                           "contradictory inputs the model never saw in training")
@@ -50,9 +51,7 @@ class ClaimInput(BaseModel):
     PastNumberOfClaims: Literal["none", "1", "2 to 4", "more than 4"]
     AgeOfVehicle: Literal["new", "2 years", "3 years", "4 years",
                           "5 years", "6 years", "7 years", "more than 7"]
-    AgeOfPolicyHolder: Optional[Literal[
-        "16 to 17", "18 to 20", "21 to 25", "26 to 30", "31 to 35",
-        "36 to 40", "41 to 50", "51 to 65", "over 65"]] = Field(
+    AgeOfPolicyHolder: Literal["16 to 17", "18 to 20", "21 to 25", "26 to 30", "31 to 35", "36 to 40", "41 to 50", "51 to 65", "over 65"] | None = Field(  # noqa: E501
         None, description="DERIVED from Age when Age is given (any client-sent "
                           "value is overwritten); required only when Age is omitted")
     PoliceReportFiled: YesNo
@@ -102,13 +101,13 @@ class PredictionResponse(BaseModel):
     fraud_probability: float = Field(..., description="P(fraud) in [0, 1]")
     flagged: bool = Field(..., description="True if probability >= operating threshold")
     threshold: float = Field(..., description="Operating threshold (max-F2, chosen on training data)")
-    top_reasons: List[str] = Field(..., description="Top SHAP drivers, analyst-readable")
+    top_reasons: list[str] = Field(..., description="Top SHAP drivers, analyst-readable")
 
 
 class QueueItem(BaseModel):
     received_at: str
     fraud_probability: float
-    top_reasons: List[str]
+    top_reasons: list[str]
 
 
 class HealthResponse(BaseModel):
