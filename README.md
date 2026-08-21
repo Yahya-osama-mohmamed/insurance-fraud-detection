@@ -126,15 +126,25 @@ Then open http://localhost:8000/ui/ for the analyst interface.
 **From source:**
 
 ```bash
+uv sync            # creates .venv and installs the locked dependency tree
+
 # Full pipeline (data -> models -> metrics -> SHAP)
-python -m src.preprocessing && python -m src.train && python -m src.evaluate && python -m src.explain
+uv run python -m src.preprocessing
+uv run python -m src.train
+uv run python -m src.evaluate
+uv run python -m src.explain
 
 # Tests
-pytest tests/ -q
+uv run pytest
 
-# Check the model still clears its floor, the way CI does
-python scripts/check_model_quality.py
+# Check the model still clears its recall floor, the way CI does
+uv run python scripts/check_model_quality.py
 ```
+
+Dependencies are managed with [uv](https://docs.astral.sh/uv/): `pyproject.toml`
+declares them, `uv.lock` pins the entire transitive tree, and `uv sync` installs
+exactly that. The lockfile is what CI and the container build install from, so
+"works on my machine" and "works in the image" are the same resolution.
 
 ## Repo tour
 

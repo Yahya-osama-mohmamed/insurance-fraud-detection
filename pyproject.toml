@@ -1,0 +1,65 @@
+[project]
+name = "insurance-fraud-detection"
+version = "1.0.0"
+description = "Fraud scoring under 6% prevalence, with SHAP reasons an analyst can act on"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+# shap and imbalanced-learn are runtime dependencies, not analysis
+# ones: every response carries SHAP reasons, and the served pipeline
+# is an imblearn Pipeline that cannot be unpickled without it.
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "pydantic==2.10.4",
+    "joblib==1.4.2",
+    "numpy==1.26.4",
+    "pandas==2.2.3",
+    "scikit-learn==1.5.2",
+    "lightgbm==4.5.0",
+    "imbalanced-learn==0.12.4",
+    "shap==0.46.0",
+    "matplotlib==3.9.3",
+]
+
+[dependency-groups]
+dev = [
+    "seaborn==0.13.2",
+    "pyarrow==18.1.0",
+    "ipykernel==7.3.0",
+    "nbconvert==7.17.1",
+    "pytest==8.3.4",
+    "pytest-cov>=6",
+    "httpx==0.28.1",
+    "ruff==0.16.4",
+]
+
+[tool.ruff]
+# Notebooks are deliberately excluded: `import a; import b` on one line and
+# imports part-way down a file are normal notebook style, and enforcing library
+# rules on exploratory cells produces noise rather than quality.
+line-length = 110
+target-version = "py311"
+extend-exclude = [".venv", "venv", "mlruns", "dashboard", "data", "*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+# B008 is the FastAPI dependency-injection idiom (Depends(), File()), not a bug.
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+# The project is not installed as a package, so make the root importable.
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.uv]
+# These are applications, not libraries: install the dependencies, not the project.
+package = false
